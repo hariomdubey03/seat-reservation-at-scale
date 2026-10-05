@@ -2,9 +2,8 @@ import asyncio
 import logging
 import re
 from contextlib import asynccontextmanager
-from time import monotonic
 from typing import Annotated
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import psycopg
 from fastapi import Depends, FastAPI, Header, Request
@@ -18,6 +17,7 @@ from psycopg_pool import AsyncConnectionPool, PoolClosed, PoolTimeout, TooManyRe
 from app.auth import TokenService
 from app.config import Settings
 from app.domain import DomainError, ReservationService
+from app.middleware import RequestLoggingMiddleware
 from app.observability import configure_logging, render_metrics
 from app.repository import PostgresReservationStore
 from app.schemas import CreateShow, IssueToken, ReserveSeats
@@ -66,34 +66,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Seat Reservation", version="1.0.0", lifespan=lifespan)
 
 
-@app.middleware("http")
-async def request_logging(request: Request, call_next):
-    supplied = request.headers.get("X-Request-ID", "")
-    request_id = supplied if re.fullmatch(r"[A-Za-z0-9_-]{1,80}", supplied) else str(uuid4())
-    request.state.request_id = request_id
-    started = monotonic()
-    try:
-        response = await call_next(request)
-    except Exception:
-        log.exception("Unhandled request failure", extra={"fields": {"request_id": request_id}})
-        response = JSONResponse(
-            {
-                "error": {"code": "internal_error", "message": "Unexpected server failure"},
-                "request_id": request_id,
-            },
-            status_code=500,
-        )
-    response.headers["X-Request-ID"] = request_id
-    fields = {
-        "request_id": request_id,
-        "method": request.method,
-        "path": request.url.path,
-        "status": response.status_code,
-        "duration_ms": round((monotonic() - started) * 1000, 2),
-        "outcome": getattr(request.state, "outcome", "http_response"),
-    }
-    log.info("request_completed", extra={"fields": fields})
-    return response
+app.add_middleware(RequestLoggingMiddleware)
 
 
 @app.exception_handler(DomainError)

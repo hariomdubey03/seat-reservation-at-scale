@@ -149,8 +149,9 @@ class Results:
 
 
 class Exercise:
-    def __init__(self, client: BurstClient, args: argparse.Namespace):
+    def __init__(self, client: BurstClient, args: argparse.Namespace, load_client: BurstClient):
         self.client = client
+        self.load_client = load_client
         self.args = args
         self.prefix = f"burst-{uuid.uuid4().hex[:12]}"
         self.tokens: list[str] = []
@@ -189,11 +190,17 @@ class Exercise:
         return show
 
     async def reserve(
-        self, show_id: str, seats: list[str], key: str, user: int = 0, extra: dict | None = None
+        self,
+        show_id: str,
+        seats: list[str],
+        key: str,
+        user: int = 0,
+        extra: dict | None = None,
+        client: BurstClient | None = None,
     ) -> BufferedResponse:
         payload = {"seats": seats, "idempotency_key": key}
         payload.update(extra or {})
-        return await self.client.post(
+        return await (client or self.client).post(
             f"/shows/{show_id}/reserve",
             headers=bearer(self.tokens[user]),
             json=payload,
@@ -260,7 +267,9 @@ class Exercise:
                 key = "original" if is_replay else f"storm-{index}"
                 request_started = time.perf_counter()
                 try:
-                    response = await self.reserve(show_id, [seat], key, user)
+                    response = await self.reserve(
+                        show_id, [seat], key, user, client=self.load_client
+                    )
                 except (aiohttp.ClientError, TimeoutError) as error:
                     self.results.outcomes["transport_failure"] += 1
                     self.results.fail(f"request {index}: {type(error).__name__}: {error}")
@@ -427,14 +436,21 @@ class Exercise:
 
 
 async def run(args: argparse.Namespace) -> int:
-    connector = aiohttp.TCPConnector(limit=args.concurrency + 2)
-    async with aiohttp.ClientSession(
-        base_url=args.base_url.rstrip("/"),
-        connector=connector,
-        timeout=aiohttp.ClientTimeout(total=args.timeout),
-    ) as session:
-        client = BurstClient(session)
-        exercise = Exercise(client, args)
+    # Control requests use fresh, small pools instead of inheriting thousands of
+    # idle storm connections that the server may already have closed.
+    async with (
+        aiohttp.ClientSession(
+            base_url=args.base_url.rstrip("/"),
+            connector=aiohttp.TCPConnector(limit=32, keepalive_timeout=2),
+            timeout=aiohttp.ClientTimeout(total=args.timeout),
+        ) as control,
+        aiohttp.ClientSession(
+            base_url=args.base_url.rstrip("/"),
+            connector=aiohttp.TCPConnector(limit=args.concurrency, keepalive_timeout=2),
+            timeout=aiohttp.ClientTimeout(total=args.timeout),
+        ) as load,
+    ):
+        exercise = Exercise(BurstClient(control), args, BurstClient(load))
         print(f"Preparing {args.users} authenticated users for {exercise.prefix}...", flush=True)
         await exercise.setup()
         print(
