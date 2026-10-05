@@ -32,7 +32,7 @@ python -m app.migrate
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-`DATABASE_URL` targets PostgreSQL on `127.0.0.1:5433` for host development. Compose sets the API container's connection URL to the internal `db:5432` address. `DB_POOL_SIZE` defaults to 10 connections **per application process**; size the total across replicas below the database connection budget. `DB_POOL_TIMEOUT` is the maximum pool wait in seconds (default 180). User tokens expire after `TOKEN_TTL_SECONDS` (default 86400). `LOG_LEVEL` defaults to `INFO`; `PORT` defaults to `8000`.
+`DATABASE_URL` targets PostgreSQL on `127.0.0.1:5433` for host development. Compose sets the API container's connection URL to the internal `db:5432` address. `DB_POOL_SIZE` defaults to 10 connections **per application process**; size the total across replicas below the database connection budget. Each API process admits at most 256 active mutation requests, queuing the rest before body parsing; reads and health checks bypass this admission queue. This queue controls memory use, while PostgreSQL still decides ownership. `DB_POOL_TIMEOUT` is the maximum pool wait in seconds (default 180). User tokens expire after `TOKEN_TTL_SECONDS` (default 86400). `LOG_LEVEL` defaults to `INFO`; `PORT` defaults to `8000`.
 
 ## API walkthrough
 

@@ -30,7 +30,7 @@ During a partition or database outage, the service fails closed with an unavaila
 
 ## Structure and principles
 
-The project uses an HTTP boundary for parsing, authentication, and response mapping; a service boundary for booking rules; and a PostgreSQL repository for SQL and transaction ownership. Dependencies are supplied explicitly. A small repository interface keeps the service independent of connection management without abstracting away the database guarantees it relies on.
+The project uses an HTTP boundary for parsing, authentication, and response mapping; a service boundary for canonical booking commands; and a PostgreSQL repository for SQL and transaction ownership. Dependencies are supplied explicitly. A small repository interface keeps the service independent of connection management without abstracting away the database guarantees it relies on.
 
 Single responsibility means authentication, transport validation, booking rules, and persistence have clear owners. DRY means shared validation, error formatting, and idempotency comparison have one implementation. Composition and narrow interfaces provide the useful parts of OOP and dependency inversion. There is no class hierarchy for screens, air conditioning, or payment integrations absent from the exercise. New abstractions should solve a concrete second use case. The project skill captures these checks before implementation and review.
 
@@ -47,8 +47,16 @@ At 2am I would investigate:
 
 Expected seat-taken responses during a hot-seat storm are healthy contention outcomes. Alert thresholds for latency and error rates need a measured baseline. This submission exposes metrics and structured logs; a hosted Prometheus/Grafana installation and paging integration are follow-up operational work. Capturing output from the real public burst and its matching logs is part of deployment evidence.
 
+Each API process queues mutation requests before parsing, allowing 256 active mutations. Reads and health checks bypass that admission queue; request logs include `queue_wait_ms`. This process-local semaphore manages resource usage and has no role in deciding seat ownership.
+
 The app uses a bounded asynchronous connection pool instead of one database connection per HTTP request. Keep transactions short and avoid network calls while holding row locks. Increasing API replicas also increases total pool connections, so database capacity must be budgeted across the fleet. Heavy contention for a single seat necessarily serializes the decision about that seat.
 
 ## Next work
 
 First, publish and record the live deployment and observed results for the requested load. Then tune from measurements: connection budgeting, indexed query plans, lock wait duration, client admission control, and database sizing. Introduce a real identity provider, backups and restore drills, CI deployment checks, a versioned migration policy, and retention for idempotency and request outcomes. Scale metrics collection before request-event history makes full-history aggregation expensive. An external payment workflow would need an outbox and provider idempotency; expiring holds would need explicit ownership/version checks. Neither is required by the chosen cancellation model.
+
+## Primary references
+
+- [PostgreSQL row locking](https://www.postgresql.org/docs/17/explicit-locking.html#LOCKING-ROWS)
+- [Read Committed and conflict insertion](https://www.postgresql.org/docs/17/transaction-iso.html#XACT-READ-COMMITTED)
+- [Psycopg connection pools](https://www.psycopg.org/psycopg3/docs/advanced/pool.html)

@@ -1,5 +1,6 @@
 """ASGI request logging without a task group and response stream per request."""
 
+import asyncio
 import logging
 import re
 from time import monotonic
@@ -15,6 +16,8 @@ log = logging.getLogger("reservation.api")
 class RequestLoggingMiddleware:
     def __init__(self, app: ASGIApp):
         self.app = app
+        # Admission control only; PostgreSQL still owns every correctness decision.
+        self.mutations = asyncio.Semaphore(256)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -27,6 +30,7 @@ class RequestLoggingMiddleware:
         started = monotonic()
         response_started = False
         status = 500
+        queue_wait_ms = 0.0
 
         async def correlated_send(message: Message) -> None:
             nonlocal response_started, status
@@ -37,7 +41,14 @@ class RequestLoggingMiddleware:
             await send(message)
 
         try:
-            await self.app(scope, receive, correlated_send)
+            if scope["method"] in {"GET", "HEAD", "OPTIONS"}:
+                await self.app(scope, receive, correlated_send)
+            else:
+                # Queue before FastAPI parses/validates the body or creates dependencies.
+                # Do not reject a legitimate contention burst with a synthetic 503.
+                async with self.mutations:
+                    queue_wait_ms = round((monotonic() - started) * 1000, 2)
+                    await self.app(scope, receive, correlated_send)
         except Exception:
             log.exception("Unhandled request failure", extra={"fields": {"request_id": request_id}})
             if response_started:
@@ -61,6 +72,7 @@ class RequestLoggingMiddleware:
                         "status": status,
                         "duration_ms": round((monotonic() - started) * 1000, 2),
                         "outcome": state.get("outcome", "http_response"),
+                        "queue_wait_ms": queue_wait_ms,
                     }
                 },
             )
