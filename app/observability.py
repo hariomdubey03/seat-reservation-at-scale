@@ -31,6 +31,8 @@ def configure_logging() -> None:
         logger = logging.getLogger(name)
         logger.handlers = []
         logger.propagate = True
+    # request_completed already emits one correlated, structured access record.
+    logging.getLogger("uvicorn.access").disabled = True
 
 
 class SnapshotCollector:

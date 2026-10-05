@@ -155,7 +155,7 @@ async def current_user(
     return request.app.state.tokens.user_id(token_value(credentials))
 
 
-def service(request: Request) -> ReservationService:
+async def service(request: Request) -> ReservationService:
     return request.app.state.service
 
 
