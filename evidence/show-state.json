@@ -1,0 +1,55 @@
+{
+  "id": "9a0d8bca-5552-4a61-8af9-6d859e8f1096",
+  "name": "burst-867a630316e6-storm",
+  "price_paise": 25000,
+  "per_user_limit": 9,
+  "total_seats": 10,
+  "seats": [
+    {
+      "status": "confirmed",
+      "seat_number": "HOT1"
+    },
+    {
+      "status": "confirmed",
+      "seat_number": "HOT2"
+    },
+    {
+      "status": "confirmed",
+      "seat_number": "HOT3"
+    },
+    {
+      "status": "confirmed",
+      "seat_number": "HOT4"
+    },
+    {
+      "status": "confirmed",
+      "seat_number": "HOT5"
+    },
+    {
+      "status": "confirmed",
+      "seat_number": "HOT6"
+    },
+    {
+      "status": "confirmed",
+      "seat_number": "HOT7"
+    },
+    {
+      "status": "confirmed",
+      "seat_number": "HOT8"
+    },
+    {
+      "status": "confirmed",
+      "seat_number": "REPLAY"
+    },
+    {
+      "status": "available",
+      "seat_number": "UNSOLD"
+    }
+  ],
+  "counts": {
+    "available": 1,
+    "held": 0,
+    "confirmed": 9,
+    "total_seats": 10
+  }
+}

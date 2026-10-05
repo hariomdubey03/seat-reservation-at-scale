@@ -1,0 +1,9 @@
+docker compose exec -T db psql -U reservation -d reservation -v ON_ERROR_STOP=1 < scripts/reconcile.sql
+BEGIN
+DO
+         audit_result          | shows | historical_reservations | idempotency_records 
+-------------------------------+-------+-------------------------+---------------------
+ all committed invariants hold |   126 |                     442 |               80924
+(1 row)
+
+COMMIT

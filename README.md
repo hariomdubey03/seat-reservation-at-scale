@@ -4,6 +4,20 @@ A JSON API built with Python 3.12, FastAPI, and PostgreSQL 17. PostgreSQL owns b
 
 The service implements immediate confirmation, owner-only cancellation, and all-or-nothing multi-seat reservations. A new booking returns `201`; replaying a successful idempotent request returns `200` with the original reservation and `Idempotent-Replayed: true`. Conflicting bookings return `409`.
 
+## Verified locally — 5 October 2026
+
+[evidence/validation.json](evidence/validation.json) records the tested source commit and results:
+
+- 26 HTTP integration tests passed, including concurrent booking, quota, cancellation, and authentication cases.
+- A fresh Git clone built with Docker and passed all 26 tests against its own PostgreSQL database.
+- 20,000 requests with 20,000 concurrent client tasks completed in 86.492 seconds: 8 new reservations, 19,989 seat-taken responses, 3 successful replays, **zero 5xx and zero transport failures**. One additional reservation was created before the storm to exercise replay.
+- Exactly one winner for each of 8 hot seats; 71 reconciliation samples; metrics matched final state.
+- The high-load p95 client latency was 65.3 seconds; sampled peak API memory was 341.5 MiB. These are local measurements, not a hosted performance promise.
+- Two API containers shared idempotency and quotas correctly. Database outage returned readiness `503` and liveness `200`; restart preserved bookings and replay results.
+- The read-only PostgreSQL audit passed for ownership, quotas, seat counts, money, and completed idempotency records.
+
+The client used 500 authenticated identities and a 240-second timeout. See the [final show state](evidence/show-state.json), [metrics snapshot](evidence/metrics-snapshot.prom), and [correlated log sample](evidence/request-logs.sample.jsonl). The complete 20,000-entry local request log is in ignored `artifacts/burst-request-logs.jsonl`. Public hosting and its load/log evidence remain pending.
+
 ## Run from a clean checkout
 
 Requirements: Docker Engine with Docker Compose v2. Python 3.12 is needed only for running the tests or burst client on the host.

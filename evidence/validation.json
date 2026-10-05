@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-10-05T12:24:33.707032+05:30",
+  "source_commit": "db648c96c366d28929bf0c20388d9e2390abf834",
+  "environment": "Local Docker; one API container; PostgreSQL 17; DB pool 10; load client on same host",
+  "public_deployment_verified": false,
+  "integration_tests": "..........................                                               [100%]\n26 passed in 2.72s",
+  "burst": {
+    "additional_scenarios": {
+      "all_or_nothing_and_cancellation": {
+        "available": 1,
+        "confirmed": 2,
+        "held": 0,
+        "total_seats": 3
+      },
+      "metrics_after_cancel_and_rebook": {
+        "available": 1,
+        "confirmed": 2,
+        "held": 0,
+        "total_seats": 3
+      },
+      "per_user_limit": {
+        "available": 6,
+        "confirmed": 4,
+        "held": 0,
+        "total_seats": 10
+      },
+      "same_key_different_seats": "one reservation; changed request rejected",
+      "token_identity": "spoofed identity rejected or ignored"
+    },
+    "concurrency": 20000,
+    "error_count": 0,
+    "errors_first_20": [],
+    "final_reconciliation": {
+      "available": 1,
+      "confirmed": 9,
+      "held": 0,
+      "total_seats": 10
+    },
+    "hot_seat_201_counts": {
+      "HOT1": 1,
+      "HOT2": 1,
+      "HOT3": 1,
+      "HOT4": 1,
+      "HOT5": 1,
+      "HOT6": 1,
+      "HOT7": 1,
+      "HOT8": 1
+    },
+    "http_response_latency_ms": {
+      "p50": 56678.58,
+      "p95": 65303.31,
+      "p99": 65907.02
+    },
+    "http_statuses": {
+      "200": 3,
+      "201": 8,
+      "409": 19989
+    },
+    "invariant_snapshots_during_burst": 71,
+    "metrics_match_final_state": true,
+    "outcomes": {
+      "5xx": 0,
+      "confirmed": 8,
+      "idempotent_replay": 3,
+      "per_user_limit": 0,
+      "seat_taken": 19989,
+      "transport_failure": 0
+    },
+    "passed": true,
+    "requests": 20000,
+    "requests_per_second": 231.24,
+    "seconds": 86.492,
+    "show_id": "9a0d8bca-5552-4a61-8af9-6d859e8f1096"
+  },
+  "operations": {
+    "two_replicas_same_key": {
+      "created": 1,
+      "replayed": 79
+    },
+    "two_replicas_hot_seat": {
+      "created": 1,
+      "declined": 79
+    },
+    "two_replicas_user_limit": {
+      "available": 8,
+      "held": 0,
+      "confirmed": 4,
+      "total_seats": 12
+    },
+    "database_down": {
+      "liveness": 200,
+      "readiness": 503
+    },
+    "restart_preserves_state_and_idempotency": true,
+    "passed": true
+  },
+  "clean_checkout": {
+    "passed": true,
+    "source_commit": "db648c96c366d28929bf0c20388d9e2390abf834",
+    "tests": "..........................                                               [100%]\n26 passed in 2.68s",
+    "database_audit": "BEGIN\nDO\n         audit_result          | shows | historical_reservations | idempotency_records \n-------------------------------+-------+-------------------------+---------------------\n all committed invariants hold |    22 |                      66 |                 221\n(1 row)\n\nCOMMIT"
+  },
+  "sampled_peak_api_memory_mib": 341.5,
+  "memory_samples": 34,
+  "limitations": [
+    "Local results do not establish hosted capacity; no public URL has been deployed.",
+    "Concurrency is client tasks, not a guarantee of simultaneous arrival of all TCP connections.",
+    "500 distinct authenticated users; 20000 distinct/replayed requests.",
+    "Client timeout was 240 seconds; observed p95 latency is recorded above.",
+    "A prior run passed the storm but failed a follow-up due to an idle client connection; pools were separated and the complete run repeated."
+  ],
+  "correlated_burst_log_count": 20000
+}
