@@ -1,0 +1,6 @@
+# Append to the existing Caddyfile; validate before a graceful reload.
+# Caddy and this API share only the existing edge network.
+seats.algocrafter.in {
+	header >Cache-Control "no-store"
+	reverse_proxy seat-reservation-api:8000
+}

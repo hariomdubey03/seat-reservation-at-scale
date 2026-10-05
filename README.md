@@ -4,6 +4,20 @@ A JSON API built with Python 3.12, FastAPI, and PostgreSQL 17. PostgreSQL owns b
 
 The service implements immediate confirmation, owner-only cancellation, and all-or-nothing multi-seat reservations. A new booking returns `201`; replaying a successful idempotent request returns `200` with the original reservation and `Idempotent-Replayed: true`. Conflicting bookings return `409`.
 
+## Live service and reviewer files
+
+- **API:** https://seats.algocrafter.in
+- **Interactive documentation:** https://seats.algocrafter.in/docs
+- **Readiness:** https://seats.algocrafter.in/health/ready
+- **Metrics:** https://seats.algocrafter.in/metrics
+- **Logs:** `GET /logs` with the privately supplied admin bearer token.
+- [Reviewer walkthrough](docs/REVIEWER_GUIDE.md), [flow diagrams](docs/ARCHITECTURE.md), and [operator runbook](docs/OPERATIONS.md).
+- [Postman collection](postman/seat-reservation.postman_collection.json) and [live environment](postman/live.postman_environment.json). Set the empty `admin_token` value privately, then run in order.
+
+The VM deployment uses `deploy/compose.vm.yaml`, a dedicated PostgreSQL volume,
+resource limits, and the existing reverse proxy with a separate hostname. Live
+credentials and scratch notes are excluded from the public submission.
+
 ## Verified locally — 5 October 2026
 
 [evidence/validation.json](evidence/validation.json) records the tested source commit and results:
@@ -16,7 +30,7 @@ The service implements immediate confirmation, owner-only cancellation, and all-
 - Two API containers shared idempotency and quotas correctly. Database outage returned readiness `503` and liveness `200`; restart preserved bookings and replay results.
 - The read-only PostgreSQL audit passed for ownership, quotas, seat counts, money, and completed idempotency records.
 
-The client used 500 authenticated identities and a 240-second timeout. See the [final show state](evidence/show-state.json), [metrics snapshot](evidence/metrics-snapshot.prom), and [correlated log sample](evidence/request-logs.sample.jsonl). The complete 20,000-entry local request log is in ignored `artifacts/burst-request-logs.jsonl`. Public hosting and its load/log evidence remain pending.
+The client used 500 authenticated identities and a 240-second timeout. See the [final show state](evidence/show-state.json), [metrics snapshot](evidence/metrics-snapshot.prom), and [correlated log sample](evidence/request-logs.sample.jsonl). The complete 20,000-entry local request log is in ignored `artifacts/burst-request-logs.jsonl`. These are the original local results; hosted results are recorded separately in `evidence/hosted-validation.json`.
 
 ## Run from a clean checkout
 
@@ -195,7 +209,7 @@ docker compose logs --no-color api > artifacts/live-logs.txt
 
 For the hosted service, use its provider log viewer. If those logs cannot be public, record the log viewer while the burst runs and include the recording with the submission. Do not publish bearer tokens or environment secrets.
 
-## Public deployment
+## Alternative deployment: Render
 
 `render.yaml` is a Render Blueprint for a Docker web service and managed PostgreSQL in the same region. Both plans are explicitly free. The Docker command runs migrations before starting the server, which also supports cold starts; a failed migration prevents an unhealthy instance from accepting traffic. A paid deployment can move migration execution to a release/pre-deploy step. Render's [Blueprint reference](https://render.com/docs/blueprint-spec) documents the configuration; its [deployment documentation](https://render.com/docs/deploys#pre-deploy-command) describes the paid pre-deploy option.
 
@@ -207,6 +221,6 @@ For the hosted service, use its provider log viewer. If those logs cannot be pub
 
 Free-tier capacity is not a 20,000-client performance guarantee. Free Render databases also expire after 30 days; select a suitable plan or arrange a deployment lifetime that covers evaluation. See [Render's current free-tier limits](https://render.com/docs/free).
 
-**Submission status:** the repository includes deployment configuration. A live public URL and load evidence must be recorded from an actual deployment; configuration alone is not proof of deployment.
+The live submission uses the VM deployment described in [the operator runbook](docs/OPERATIONS.md). The Render blueprint remains an optional alternative.
 
 See [WRITEUP.md](WRITEUP.md) for the transaction and failure model, design principles, and operational alerts.

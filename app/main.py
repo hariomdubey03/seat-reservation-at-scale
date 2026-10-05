@@ -6,7 +6,7 @@ from typing import Annotated
 from uuid import UUID
 
 import psycopg
-from fastapi import Depends, FastAPI, Header, Request
+from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -46,7 +46,7 @@ def make_pool(settings: Settings, *, health: bool = False) -> AsyncConnectionPoo
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    configure_logging()
+    app.state.recent_logs = configure_logging()
     settings = Settings.from_env()
     pool = make_pool(settings)
     health_pool = make_pool(settings, health=True)
@@ -212,3 +212,19 @@ async def readiness(request: Request):
 async def metrics(request: Request):
     snapshot = await request.app.state.repository.metrics_snapshot()
     return Response(render_metrics(snapshot), headers={"Content-Type": CONTENT_TYPE_LATEST})
+
+
+@app.get("/logs", dependencies=[Depends(require_admin)])
+async def recent_logs(
+    request: Request,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    request_id: Annotated[str | None, Query(pattern=r"^[A-Za-z0-9_-]{1,80}$")] = None,
+):
+    return JSONResponse(
+        {
+            "scope": "current_process",
+            "capacity": 2000,
+            "entries": request.app.state.recent_logs.snapshot(limit, request_id),
+        },
+        headers={"Cache-Control": "no-store"},
+    )

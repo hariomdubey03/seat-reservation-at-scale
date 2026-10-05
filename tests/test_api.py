@@ -104,6 +104,26 @@ async def api():
         yield API(client, admin_token)
 
 
+async def test_reviewer_logs_require_admin_and_correlate_requests(api):
+    body(await api.client.get("/logs"), 401)
+    _, user_token = await api.user("log-reader")
+    body(await api.client.get("/logs", headers=auth(user_token)), 403)
+    request_id = f"reviewer-{uuid.uuid4().hex}"
+    response = await api.client.get("/health/live", headers={"X-Request-ID": request_id})
+    assert response.status_code == 200
+    logs = await api.client.get(
+        "/logs", headers=api.admin, params={"request_id": request_id, "limit": 10}
+    )
+    entries = body(logs)["entries"]
+    assert len(entries) == 1
+    assert entries[0]["request_id"] == request_id
+    assert entries[0]["status"] == 200
+    assert entries[0]["path"] == "/health/live"
+    assert logs.headers["Cache-Control"] == "no-store"
+    assert "Authorization" not in logs.text and user_token not in logs.text
+    body(await api.client.get("/logs?limit=501", headers=api.admin), 422)
+
+
 async def test_health_and_prometheus_metrics_are_public(api):
     body(await api.client.get("/health/live"))
     body(await api.client.get("/health/ready"))

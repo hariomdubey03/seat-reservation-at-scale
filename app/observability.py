@@ -1,10 +1,34 @@
 import json
 import logging
 import os
+from collections import deque
 from datetime import UTC, datetime
 
 from prometheus_client import CollectorRegistry, generate_latest
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily
+
+
+class RecentRequestLogs(logging.Handler):
+    """Bounded, per-process view of completion logs for authenticated reviewers."""
+
+    def __init__(self):
+        super().__init__()
+        self.entries: deque[dict] = deque(maxlen=2000)
+        self.setFormatter(JsonFormatter())
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.name == "reservation.api" and record.getMessage() == "request_completed":
+            self.entries.append(json.loads(self.format(record)))
+
+    def snapshot(self, limit: int, request_id: str | None = None) -> list[dict]:
+        self.acquire()
+        try:
+            entries = list(self.entries)
+        finally:
+            self.release()
+        if request_id is not None:
+            entries = [entry for entry in entries if entry["request_id"] == request_id]
+        return entries[-limit:]
 
 
 class JsonFormatter(logging.Formatter):
@@ -21,11 +45,12 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(entry, default=str)
 
 
-def configure_logging() -> None:
+def configure_logging() -> RecentRequestLogs:
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
     root = logging.getLogger()
-    root.handlers = [handler]
+    recent = RecentRequestLogs()
+    root.handlers = [handler, recent]
     root.setLevel(os.getenv("LOG_LEVEL", "INFO"))
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         logger = logging.getLogger(name)
@@ -33,6 +58,7 @@ def configure_logging() -> None:
         logger.propagate = True
     # request_completed already emits one correlated, structured access record.
     logging.getLogger("uvicorn.access").disabled = True
+    return recent
 
 
 class SnapshotCollector:
