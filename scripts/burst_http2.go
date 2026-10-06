@@ -4,12 +4,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"os"
@@ -34,8 +36,16 @@ type client struct {
 	connections map[string]bool
 }
 
-func newClient(base string, timeout time.Duration) *client {
+func newClient(base string, timeout time.Duration, connectAddress string) *client {
 	tr := &http.Transport{Proxy: http.ProxyFromEnvironment, ForceAttemptHTTP2: true, MaxConnsPerHost: 256, MaxIdleConns: 256, MaxIdleConnsPerHost: 256, IdleConnTimeout: 2 * time.Second, TLSHandshakeTimeout: 30 * time.Second}
+	if connectAddress != "" {
+		// Diagnostic override only. URL hostname and TLS certificate checks stay intact.
+		tr.Proxy = nil
+		dialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
+		tr.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, connectAddress)
+		}
+	}
 	return &client{base: strings.TrimRight(base, "/"), http: &http.Client{Transport: tr, Timeout: timeout, CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}, connections: map[string]bool{}}
 }
 func (c *client) call(method, path, token string, body any, requestID string) response {
@@ -147,13 +157,14 @@ func run() error {
 	concurrency := flag.Int("concurrency", 20000, "Concurrent client tasks")
 	users := flag.Int("users", 500, "Distinct authenticated users")
 	seconds := flag.Int("timeout", 240, "Timeout per HTTP request in seconds")
+	connectAddress := flag.String("connect-address", "", "Diagnostic origin IP:port override; retains TLS verification")
 	flag.Parse()
 	admin := os.Getenv("ADMIN_TOKEN")
 	if admin == "" || *requests < 16 || *concurrency < 1 || *users < 2 || *seconds < 1 {
 		return fmt.Errorf("set ADMIN_TOKEN; requests >=16, concurrency >=1, users >=2, timeout >=1")
 	}
-	control := newClient(*url, time.Duration(*seconds)*time.Second)
-	load := newClient(*url, time.Duration(*seconds)*time.Second)
+	control := newClient(*url, time.Duration(*seconds)*time.Second, *connectAddress)
+	load := newClient(*url, time.Duration(*seconds)*time.Second, *connectAddress)
 	entropy := make([]byte, 8)
 	if _, err := rand.Read(entropy); err != nil {
 		return err
@@ -417,6 +428,7 @@ func run() error {
 		firstErrors = firstErrors[:20]
 	}
 	report := map[string]any{"passed": len(failures) == 0, "requests": *requests, "concurrency": *concurrency, "users": *users, "seconds": elapsed, "show_id": id, "http_statuses": statuses, "http_protocols": protocols, "connections_used": connections, "outcomes": outcomes, "hot_seat_201_counts": winners, "invariant_snapshots_during_burst": snapshots, "final_reconciliation": state["counts"], "metrics_match_final_state": metricsMatch, "additional_scenarios": scenarios, "http_response_latency_ms": map[string]float64{"p50": percentile(latencies, .5), "p95": percentile(latencies, .95), "p99": percentile(latencies, .99)}, "error_count": len(failures), "errors_first_20": firstErrors}
+	report["connect_address_override"] = *connectAddress
 	encoded, _ := json.MarshalIndent(report, "", "  ")
 	fmt.Println(string(encoded))
 	if len(failures) > 0 {
