@@ -4,7 +4,7 @@ ADMIN_TOKEN ?= local-admin-token-change-before-deployment
 REQUESTS ?= 20000
 CONCURRENCY ?= 500
 
-.PHONY: up down logs install-dev migrate run test burst health check-operations audit lint
+.PHONY: up down logs install-dev migrate run test burst burst-http2 health check-operations audit lint
 
 up:
 	docker compose up --build -d --wait
@@ -29,6 +29,9 @@ test:
 
 burst:
 	$(PYTHON) scripts/burst.py "$(BASE_URL)" --admin-token "$(ADMIN_TOKEN)" --requests "$(REQUESTS)" --concurrency "$(CONCURRENCY)"
+
+burst-http2:
+	ADMIN_TOKEN="$(ADMIN_TOKEN)" go run scripts/burst_http2.go -url "$(BASE_URL)" -requests "$(REQUESTS)" -concurrency "$(CONCURRENCY)"
 
 health:
 	curl --fail --silent --show-error "$(BASE_URL)/health/live"

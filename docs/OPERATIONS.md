@@ -9,8 +9,8 @@ No SSH key, database password, JWT signing key or live admin token belongs in Gi
 
 `deploy/compose.vm.yaml` uses the dedicated `seat-reservation` project:
 
-- API: 1.5 CPU limit, 768 MiB memory limit, loopback port 18080.
-- PostgreSQL 17: 1 CPU limit, 768 MiB memory limit, no host port.
+- API: 2 CPU limit, 2 GiB memory limit, loopback port 18080.
+- PostgreSQL 17: 2 CPU limit, 2 GiB memory limit, no host port.
 - Persistent database volume: `seat-reservation_reservation_data`.
 - Private database network; API also joins the existing `asm_net` proxy network
   using the unique alias `seat-reservation-api`.
@@ -18,6 +18,14 @@ No SSH key, database password, JWT signing key or live admin token belongs in Gi
 - Docker restarts both containers unless explicitly stopped. API startup runs the
   idempotent, transactionally locked schema migration before accepting traffic.
 - Container logs rotate; the new project has no Docker-socket mount or host filesystem access.
+
+On 6 October 2026, the five older application containers were stopped at the
+owner's request to dedicate capacity to this exercise. Their data and configuration
+remain intact; their application hostname is intentionally unavailable while stopped.
+Caddy remains running to serve the reservation hostname. To restore the older stack,
+start its database/storage first (`docker start asm-postgres-1 asm-minio-1`), wait
+for readiness, then start `asm-api-1 asm-orchestrator-1 asm-ingestor-1`. Reduce the
+reservation resource limits if both applications need to share this VM again.
 
 The existing application's containers, database, secrets and network configuration
 are not replaced. Caddy receives one additional hostname block from
@@ -58,6 +66,9 @@ When moving to another VM, set `EDGE_NETWORK` and configure its HTTPS reverse pr
 Cloudflare has a proxied A record for `seats.algocrafter.in` pointing to this VM.
 Caddy issues and renews the subdomain's public certificate. The API route sends
 `Cache-Control: no-store`; do not introduce a cache rule for state, metrics or logs.
+The reservation reverse proxy uses a 2-second idle keepalive, shorter than Uvicorn's
+5-second timeout, to avoid reusing a closed connection for a POST. See [Caddy's
+transport documentation](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#the-http-transport).
 Retain the existing zone security settings. Do not turn off TLS verification to mask
 certificate failures. API and database ports remain unpublished or loopback-bound.
 

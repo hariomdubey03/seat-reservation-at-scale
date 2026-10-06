@@ -14,11 +14,16 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache: false
       - run: pip install -r requirements-dev.txt
       - run: ruff check app scripts tests
       - run: docker compose up --build --wait -d
       - run: pytest -q
       - run: python scripts/burst.py http://127.0.0.1:8000 --requests 1000 --concurrency 100
+      - run: go run scripts/burst_http2.go -url http://127.0.0.1:8000 -requests 1000 -concurrency 100
       - run: python scripts/check_operations.py
       - name: Save service logs
         if: always()

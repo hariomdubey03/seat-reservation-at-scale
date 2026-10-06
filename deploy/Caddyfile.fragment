@@ -2,5 +2,10 @@
 # Caddy and this API share only the existing edge network.
 seats.algocrafter.in {
 	header >Cache-Control "no-store"
-	reverse_proxy seat-reservation-api:8000
+	reverse_proxy seat-reservation-api:8000 {
+		transport http {
+			# Shorter than Uvicorn's 5s idle timeout: avoid reusing a stale POST connection.
+			keepalive 2s
+		}
+	}
 }

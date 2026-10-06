@@ -18,6 +18,20 @@ The VM deployment uses `deploy/compose.vm.yaml`, a dedicated PostgreSQL volume,
 resource limits, and the existing reverse proxy with a separate hostname. Live
 credentials and scratch notes are excluded from the public submission.
 
+## Public burst command
+
+With Go 1.24+ installed and the privately supplied admin token exported:
+
+```sh
+make burst-http2 BASE_URL=https://seats.algocrafter.in REQUESTS=20000 CONCURRENCY=20000
+```
+
+This uses standard-library HTTP/2 support to multiplex requests over TLS. It reports
+actual protocol/connection counts, every outcome, latency, live reconciliation samples,
+and booking-rule checks. The Python HTTP/1.1 runner remains available via `make burst`.
+A 20,000-socket HTTPS client needs substantially more memory than a local plain-HTTP
+client; client resource exhaustion is a failed run and is recorded as such.
+
 ## Verified locally — 5 October 2026
 
 [evidence/validation.json](evidence/validation.json) records the tested source commit and results:

@@ -4,14 +4,14 @@
 
 ```mermaid
 flowchart LR
-    Client[Reviewer / Postman / burst client] -->|HTTPS| Edge[Cloudflare proxy\nseats.algocrafter.in]
-    Edge -->|HTTPS| Caddy[Existing Caddy\nnew hostname route]
-    Caddy --> API[FastAPI\nseat-reservation-api]
-    API -->|private database network| PG[(PostgreSQL 17\ndedicated persistent volume)]
+    Client[Reviewer / Postman / burst client] -->|HTTPS| Edge[Cloudflare proxy<br/>seats.algocrafter.in]
+    Edge -->|HTTPS| Caddy[Existing Caddy<br/>new hostname route]
+    Caddy --> API[FastAPI<br/>seat-reservation-api]
+    API -->|private database network| PG[(PostgreSQL 17<br/>dedicated persistent volume)]
     API --> Logs[JSON stdout + bounded admin log view]
     PG --> Metrics[Committed-state metrics]
     Metrics --> API
-    Caddy -->|other hostname routes| Existing[Existing application\nseparate containers and database]
+    Caddy -->|other hostname routes| Existing[Other application<br/>currently stopped by owner]
 ```
 
 Only the reverse proxy network is shared. The reservation database has no published

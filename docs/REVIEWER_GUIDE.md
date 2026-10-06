@@ -57,6 +57,21 @@ To run locally, set `base_url` to `http://127.0.0.1:8000` and use the local admi
 
 ## Run the concurrency scenario
 
+For the public HTTPS endpoint, use the HTTP/2 runner (Go 1.24 or newer, standard
+library only). It submits 20,000 concurrent client tasks while multiplexing HTTP
+streams over TLS connections, and prints the actual protocol and connections used:
+
+```sh
+export BASE_URL=https://seats.algocrafter.in
+read -rs ADMIN_TOKEN
+export ADMIN_TOKEN
+go run scripts/burst_http2.go -url "$BASE_URL" -requests 20000 -concurrency 20000
+```
+
+It checks hot seats, identical retries, changed-body retries, parallel quota, ownership,
+all-or-nothing selection, cancellation/rebooking, spoofing, reconciliation, and metrics.
+The Python runner is also available for HTTP/1.1 comparisons and local testing:
+
 Install Python 3.12 and `requirements-dev.txt`, then provide the admin token in the
 environment (avoid committing it or putting it into a shell history entry):
 
@@ -67,7 +82,9 @@ export ADMIN_TOKEN
 python scripts/burst.py "$BASE_URL" --requests 20000 --concurrency 500 --timeout 240
 ```
 
-Use `--concurrency 20000` for the full concurrent-client scenario. The script creates
+The Python runner supports `--concurrency 20000`, but opening 20,000 independent
+TLS connections requires a large load-generator memory budget. Use the HTTP/2
+command above for the public 20,000-task scenario. The script creates
 fresh shows and test identities, storms a hot seat, mixes further requests and
 replays, samples the reconciliation invariant, checks metrics, and prints all HTTP
 outcomes plus latency percentiles. It does not retry away network failures or 5xx.

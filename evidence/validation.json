@@ -1,6 +1,6 @@
 {
   "recorded_at": "2026-10-05T12:24:33.707032+05:30",
-  "source_commit": "db648c96c366d28929bf0c20388d9e2390abf834",
+  "source_commit": "0fe8a4305eb57be840c6d9534f94e61af018c59f",
   "environment": "Local Docker; one API container; PostgreSQL 17; DB pool 10; load client on same host",
   "public_deployment_verified": false,
   "integration_tests": "..........................                                               [100%]\n26 passed in 2.72s",
@@ -96,7 +96,7 @@
   },
   "clean_checkout": {
     "passed": true,
-    "source_commit": "db648c96c366d28929bf0c20388d9e2390abf834",
+    "source_commit": "0fe8a4305eb57be840c6d9534f94e61af018c59f",
     "tests": "..........................                                               [100%]\n26 passed in 2.68s",
     "database_audit": "BEGIN\nDO\n         audit_result          | shows | historical_reservations | idempotency_records \n-------------------------------+-------+-------------------------+---------------------\n all committed invariants hold |    22 |                      66 |                 221\n(1 row)\n\nCOMMIT"
   },
