@@ -6,6 +6,9 @@ seats.algocrafter.in {
 		transport http {
 			# Shorter than Uvicorn's 5s idle timeout: avoid reusing a stale POST connection.
 			keepalive 2s
+			# Queue at the proxy instead of flooding the upstream TCP accept backlog.
+			max_conns_per_host 256
+			dial_timeout 10s
 		}
 	}
 }

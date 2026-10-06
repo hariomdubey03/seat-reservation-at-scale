@@ -306,7 +306,7 @@ func run() error {
 			}
 		case r.Status >= 500:
 			outcomes["5xx"]++
-			failures = append(failures, fmt.Sprintf("HTTP %d", r.Status))
+			failures = append(failures, fmt.Sprintf("HTTP %d: %.200s", r.Status, r.Text))
 		default:
 			failures = append(failures, fmt.Sprintf("unexpected HTTP %d", r.Status))
 		}
